@@ -326,11 +326,19 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
             codeVerifier = generateCodeVerifier()
             val codeChallenge = generateCodeChallenge(codeVerifier!!)
 
+            Log.d(loggingTag, "getAccessToken - clientId: $clientId")
+            Log.d(loggingTag, "getAccessToken - redirectUrl: $redirectUrl")
+            Log.d(loggingTag, "getAccessToken - scope: $scope")
+            Log.d(loggingTag, "getAccessToken - codeVerifier: ${codeVerifier?.take(20)}...")
+            Log.d(loggingTag, "getAccessToken - codeChallenge: ${codeChallenge.take(20)}...")
+
             val builder = AuthorizationRequest.Builder(clientId, AuthorizationResponse.Type.CODE, redirectUrl)
             builder.setScopes(scopeArray)
             builder.setCustomParam("code_challenge_method", "S256")
             builder.setCustomParam("code_challenge", codeChallenge)
             val request = builder.build()
+
+            Log.d(loggingTag, "getAccessToken - Opening login activity with Type.CODE")
 
             AuthorizationClient.openLoginActivity(activity, requestCodeAuthentication, request)
         }
@@ -380,13 +388,22 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     }
 
     private fun authFlow(resultCode: Int, data: Intent?) {
+        Log.d(loggingTag, "authFlow called - resultCode: $resultCode")
 
         val response: AuthorizationResponse = AuthorizationClient.getResponse(resultCode, data)
         val result = pendingOperation!!.result
         pendingOperation = null
 
+        Log.d(loggingTag, "authFlow - response.type: ${response.type}")
+        Log.d(loggingTag, "authFlow - response.code: ${response.code}")
+        Log.d(loggingTag, "authFlow - response.accessToken: ${response.accessToken?.take(20)}...")
+        Log.d(loggingTag, "authFlow - response.error: ${response.error}")
+        Log.d(loggingTag, "authFlow - response.expiresIn: ${response.expiresIn}")
+        Log.d(loggingTag, "authFlow - codeVerifier: ${codeVerifier?.take(20)}...")
+
         when (response.type) {
             AuthorizationResponse.Type.CODE -> {
+                Log.d(loggingTag, "authFlow - Got CODE response")
                 // Return authorization code and code verifier
                 val resultMap = mapOf(
                     "authorizationCode" to response.code,
@@ -394,8 +411,23 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
                 )
                 result.success(resultMap)
             }
-            AuthorizationResponse.Type.ERROR -> result.error(errorAuthenticationToken, "Authentication went wrong", response.error)
-            else -> result.notImplemented()
+            AuthorizationResponse.Type.TOKEN -> {
+                Log.d(loggingTag, "authFlow - Got TOKEN response")
+                // Return access token (implicit grant or PKCE with internal exchange)
+                val resultMap = mapOf(
+                    "accessToken" to response.accessToken,
+                    "expiresIn" to response.expiresIn
+                )
+                result.success(resultMap)
+            }
+            AuthorizationResponse.Type.ERROR -> {
+                Log.e(loggingTag, "authFlow - Got ERROR response: ${response.error}")
+                result.error(errorAuthenticationToken, "Authentication went wrong", response.error)
+            }
+            else -> {
+                Log.e(loggingTag, "authFlow - Got unexpected response type: ${response.type}")
+                result.notImplemented()
+            }
         }
     }
 
