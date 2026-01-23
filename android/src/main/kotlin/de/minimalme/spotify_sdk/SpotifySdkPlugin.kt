@@ -312,9 +312,8 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     }
 
     private fun getAccessToken(clientId: String?, redirectUrl: String?, scope: String?, result: Result) {
-        if (applicationActivity == null) {
-            throw IllegalStateException("getAccessToken needs a foreground activity")
-        }
+        val activity = applicationActivity
+            ?: throw IllegalStateException("getAccessToken needs a foreground activity")
 
         if (clientId.isNullOrBlank() || redirectUrl.isNullOrBlank()) {
             result.error(errorConnecting, "client id or redirectUrl are not set or have invalid format", "")
@@ -333,7 +332,7 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
             builder.setCustomParam("code_challenge", codeChallenge)
             val request = builder.build()
 
-            AuthorizationClient.openLoginActivity(applicationActivity, requestCodeAuthentication, request)
+            AuthorizationClient.openLoginActivity(activity, requestCodeAuthentication, request)
         }
     }
 
