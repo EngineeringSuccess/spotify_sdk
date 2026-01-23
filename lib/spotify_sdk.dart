@@ -20,6 +20,12 @@ import 'models/player_state.dart';
 import 'models/user_status.dart';
 import 'platform_channels.dart';
 
+export 'package:spotify_sdk/enums/image_dimension_enum.dart';
+export 'package:spotify_sdk/enums/podcast_playback_speed.dart';
+export 'package:spotify_sdk/enums/repeat_mode_enum.dart';
+export 'package:spotify_sdk/extensions/image_dimension_extension.dart';
+export 'package:spotify_sdk/extensions/podcast_playback_speed_extension.dart';
+
 /// Result of Spotify authorization with PKCE
 ///
 /// Platform differences:
@@ -71,12 +77,6 @@ class SpotifyAuthorizationResult {
     );
   }
 }
-
-export 'package:spotify_sdk/enums/image_dimension_enum.dart';
-export 'package:spotify_sdk/enums/podcast_playback_speed.dart';
-export 'package:spotify_sdk/enums/repeat_mode_enum.dart';
-export 'package:spotify_sdk/extensions/image_dimension_extension.dart';
-export 'package:spotify_sdk/extensions/podcast_playback_speed_extension.dart';
 
 ///
 /// [SpotifySdk] holds the functionality to connect via spotify remote or
