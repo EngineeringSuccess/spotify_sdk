@@ -122,7 +122,7 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
             }
 
             // Initiate PKCE session (iOS handles PKCE automatically)
-            sessionManager?.initiateSession(with: requestedScopes, options: .clientOnly)
+            sessionManager?.initiateSession(with: requestedScopes, options: .clientOnly, campaign: nil)
         case SpotifySdkConstants.methodGetImage:
             guard let appRemote = appRemote else {
                 result(FlutterError(code: "Connection Error", message: "AppRemote is null", details: nil))
