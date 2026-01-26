@@ -161,11 +161,19 @@ class SpotifySdk {
   /// playlist-modify-public,user-read-currently-playing"
   /// See https://developer.spotify.com/documentation/general/guides/scopes/
   ///
+  /// **iOS Token Swap (optional but recommended):**
+  /// Pass [tokenSwapURL] and [tokenRefreshURL] to enable refresh token support
+  /// on iOS. The iOS SDK will call these backend endpoints directly to exchange
+  /// the authorization code for tokens. Without these URLs, iOS uses clientOnly
+  /// mode which does NOT return refresh tokens.
+  ///
   /// Returns [SpotifyAuthorizationResult] which differs by platform:
   /// - **Android**: Contains [authorizationCode] and [codeVerifier].
   ///   Send these to your backend to exchange for access/refresh tokens.
-  /// - **iOS**: Contains [accessToken], [refreshToken], and [expiresAt].
-  ///   iOS SDK handles PKCE internally. Send [refreshToken] to backend.
+  /// - **iOS with Token Swap**: Contains [accessToken], [refreshToken], and [expiresAt].
+  ///   iOS SDK handles token exchange via the provided URLs.
+  /// - **iOS without Token Swap**: Contains only [accessToken] and [expiresAt].
+  ///   No refresh token (clientOnly mode).
   ///
   /// Throws a [PlatformException] if authorization failed.
   /// Throws a [MissingPluginException] if the method is not implemented.
@@ -173,13 +181,23 @@ class SpotifySdk {
     required String clientId,
     required String redirectUrl,
     required String scope,
+    String? tokenSwapURL,
+    String? tokenRefreshURL,
   }) async {
     try {
-      final result = await _channel.invokeMethod(MethodNames.getAccessToken, {
+      final params = {
         ParamNames.clientId: clientId,
         ParamNames.redirectUrl: redirectUrl,
         ParamNames.scope: scope,
-      });
+      };
+
+      // iOS Token Swap URLs (only used on iOS)
+      if (Platform.isIOS && tokenSwapURL != null && tokenRefreshURL != null) {
+        params['tokenSwapURL'] = tokenSwapURL;
+        params['tokenRefreshURL'] = tokenRefreshURL;
+      }
+
+      final result = await _channel.invokeMethod(MethodNames.getAccessToken, params);
 
       if (result is Map) {
         return SpotifyAuthorizationResult.fromMap(result);

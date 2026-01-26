@@ -84,10 +84,21 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
                 return
             }
 
-            // Use SPTSessionManager for PKCE OAuth
-            // iOS SDK handles PKCE internally - no Token Swap needed
-            // Returns accessToken, refreshToken, and expiresAt directly
+            // Use SPTSessionManager with Token Swap for iOS
+            // Token Swap allows backend to exchange code using client_secret and return refresh tokens
             let configuration = SPTConfiguration(clientID: clientID, redirectURL: redirectURL)
+
+            // Configure Token Swap URLs - iOS SDK will call these endpoints directly
+            // The backend exchanges the code using client_secret and returns tokens
+            if let tokenSwapURL = swiftArguments["tokenSwapURL"] as? String,
+               let tokenRefreshURL = swiftArguments["tokenRefreshURL"] as? String {
+                configuration.tokenSwapURL = URL(string: tokenSwapURL)
+                configuration.tokenRefreshURL = URL(string: tokenRefreshURL)
+                print("[SpotifySDK] Using Token Swap: \(tokenSwapURL)")
+            } else {
+                print("[SpotifySDK] WARNING: No tokenSwapURL provided, using clientOnly mode (no refresh tokens)")
+            }
+
             sessionManager = SPTSessionManager(configuration: configuration, delegate: self)
 
             connectionStatusHandler?.tokenResult = result
@@ -121,8 +132,10 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
                 }
             }
 
-            // Initiate PKCE session (iOS handles PKCE automatically)
-            sessionManager?.initiateSession(with: requestedScopes, options: .clientOnly, campaign: nil)
+            // Use .default option when Token Swap is configured (to get refresh tokens)
+            // Fall back to .clientOnly if no Token Swap URLs provided
+            let hasTokenSwap = swiftArguments["tokenSwapURL"] != nil
+            sessionManager?.initiateSession(with: requestedScopes, options: hasTokenSwap ? .default : .clientOnly, campaign: nil)
         case SpotifySdkConstants.methodGetImage:
             guard let appRemote = appRemote else {
                 result(FlutterError(code: "Connection Error", message: "AppRemote is null", details: nil))
@@ -410,13 +423,17 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
 
 extension SwiftSpotifySdkPlugin {
     public func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        print("[SpotifySDK] application:open:url called with: \(url)")
+
         // Try SPTSessionManager first
         if let sessionManager = sessionManager {
+            print("[SpotifySDK] Forwarding to sessionManager")
             sessionManager.application(application, open: url, options: options)
             return true
         }
 
         // Fallback to old SPTAppRemote flow
+        print("[SpotifySDK] Falling back to setAccessTokenFromURL")
         setAccessTokenFromURL(url: url)
         return true
     }
