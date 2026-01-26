@@ -495,6 +495,9 @@ extension SwiftSpotifySdkPlugin: SPTSessionManagerDelegate {
         ]
         connectionStatusHandler?.tokenResult?(resultMap)
         connectionStatusHandler?.tokenResult = nil
+
+        // Clear sessionManager so future callbacks (from authorizeAndPlayURI) go to appRemote
+        sessionManager = nil
     }
 
     public func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
