@@ -384,7 +384,7 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
                     result(FlutterError(code: "Arguments Error", message: "contentType is not set", details: nil))
                     return
             }
-            appRemote.contentAPI?.fetchRecommendedContentItems(forType: contentType, flattenContainers: false, callback: { (contentItems, error) in
+            appRemote.contentAPI?.fetchRecommendedContentItems(forType: contentType, flattenContainers: true, callback: { (contentItems, error) in
                 guard error == nil else {
                     result(FlutterError(code: "ContentAPI Error", message: error?.localizedDescription, details: nil))
                     return
