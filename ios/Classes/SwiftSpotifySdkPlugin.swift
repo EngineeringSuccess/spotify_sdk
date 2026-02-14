@@ -374,6 +374,70 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
 
                 result(State.libraryStateDictionary(libraryState).json)
             })
+        case SpotifySdkConstants.methodGetRecommendedContentItems:
+            guard let appRemote = appRemote else {
+                result(FlutterError(code: "Connection Error", message: "AppRemote is null", details: nil))
+                return
+            }
+            guard let swiftArguments = call.arguments as? [String:Any],
+                let contentType = swiftArguments[SpotifySdkConstants.paramContentType] as? String else {
+                    result(FlutterError(code: "Arguments Error", message: "contentType is not set", details: nil))
+                    return
+            }
+            appRemote.contentAPI?.fetchRecommendedContentItems(forType: contentType, flattenContainers: false, callback: { (contentItems, error) in
+                guard error == nil else {
+                    result(FlutterError(code: "ContentAPI Error", message: error?.localizedDescription, details: nil))
+                    return
+                }
+                guard let items = contentItems as? [SPTAppRemoteContentItem] else {
+                    result(FlutterError(code: "ContentAPI Error", message: "Content items are empty", details: nil))
+                    return
+                }
+                let dictionaries = items.map { State.contentItemDictionary($0) }
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: dictionaries, options: [])
+                    result(String(data: jsonData, encoding: .utf8))
+                } catch {
+                    result(FlutterError(code: "ContentAPI Error", message: "Failed to serialize content items", details: nil))
+                }
+            })
+        case SpotifySdkConstants.methodGetChildrenOfItem:
+            guard let appRemote = appRemote else {
+                result(FlutterError(code: "Connection Error", message: "AppRemote is null", details: nil))
+                return
+            }
+            guard let swiftArguments = call.arguments as? [String:Any],
+                let uri = swiftArguments["uri"] as? String else {
+                    result(FlutterError(code: "Arguments Error", message: "uri is not set", details: nil))
+                    return
+            }
+            appRemote.contentAPI?.fetchContentItem(forURI: uri, callback: { (contentItemResult, error) in
+                guard error == nil else {
+                    result(FlutterError(code: "ContentAPI Error", message: error?.localizedDescription, details: nil))
+                    return
+                }
+                guard let contentItem = contentItemResult as? SPTAppRemoteContentItem else {
+                    result(FlutterError(code: "ContentAPI Error", message: "Content item not found", details: nil))
+                    return
+                }
+                appRemote.contentAPI?.fetchChildren(of: contentItem, callback: { (children, error) in
+                    guard error == nil else {
+                        result(FlutterError(code: "ContentAPI Error", message: error?.localizedDescription, details: nil))
+                        return
+                    }
+                    guard let items = children as? [SPTAppRemoteContentItem] else {
+                        result(FlutterError(code: "ContentAPI Error", message: "Children are empty", details: nil))
+                        return
+                    }
+                    let dictionaries = items.map { State.contentItemDictionary($0) }
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: dictionaries, options: [])
+                        result(String(data: jsonData, encoding: .utf8))
+                    } catch {
+                        result(FlutterError(code: "ContentAPI Error", message: "Failed to serialize children", details: nil))
+                    }
+                })
+            })
         default:
             result(FlutterMethodNotImplemented)
         }

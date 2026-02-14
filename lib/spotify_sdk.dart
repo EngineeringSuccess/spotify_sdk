@@ -17,6 +17,7 @@ import 'models/image_uri.dart';
 import 'models/library_state.dart';
 import 'models/player_context.dart';
 import 'models/player_state.dart';
+import 'models/content_item.dart';
 import 'models/user_status.dart';
 import 'platform_channels.dart';
 
@@ -25,6 +26,7 @@ export 'package:spotify_sdk/enums/podcast_playback_speed.dart';
 export 'package:spotify_sdk/enums/repeat_mode_enum.dart';
 export 'package:spotify_sdk/extensions/image_dimension_extension.dart';
 export 'package:spotify_sdk/extensions/podcast_playback_speed_extension.dart';
+export 'package:spotify_sdk/models/content_item.dart';
 
 /// Result of Spotify authorization with PKCE
 ///
@@ -768,6 +770,73 @@ class SpotifySdk {
           MethodNames.setRepeatMode, {ParamNames.repeatMode: repeatMode.index});
     } on Exception catch (e) {
       _logException(MethodNames.setRepeatMode, e);
+      rethrow;
+    }
+  }
+
+  /// Gets recommended content items for the given [contentType]
+  ///
+  /// The [contentType] specifies the type of content to retrieve
+  /// (e.g. 'default-cars' for car mode recommendations).
+  /// Returns a list of [ContentItem] from the Spotify ContentApi.
+  /// Throws a [PlatformException] if fetching content items failed.
+  /// Throws a [MissingPluginException] if the method is not implemented on
+  /// the native platforms.
+  static Future<List<ContentItem>> getRecommendedContentItems({
+    required String contentType,
+  }) async {
+    try {
+      var contentItemsJson = await _channel.invokeMethod<String>(
+        MethodNames.getRecommendedContentItems,
+        {ParamNames.contentType: contentType},
+      );
+      if (contentItemsJson == null) {
+        return [];
+      }
+      var list = jsonDecode(contentItemsJson) as List<dynamic>;
+      return list
+          .map((item) =>
+              ContentItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on Exception catch (e) {
+      _logException(MethodNames.getRecommendedContentItems, e);
+      rethrow;
+    }
+  }
+
+  /// Gets children of a content item identified by [uri]
+  ///
+  /// Use this to browse into containers returned by
+  /// [getRecommendedContentItems]. For example, "Your Library" is a
+  /// container whose children are your saved albums, playlists, etc.
+  /// Returns a list of [ContentItem] from the Spotify ContentApi.
+  /// Throws a [PlatformException] if fetching children failed.
+  /// Throws a [MissingPluginException] if the method is not implemented on
+  /// the native platforms.
+  static Future<List<ContentItem>> getChildrenOfItem({
+    required String uri,
+    int perPage = 20,
+    int offset = 0,
+  }) async {
+    try {
+      var childrenJson = await _channel.invokeMethod<String>(
+        MethodNames.getChildrenOfItem,
+        {
+          ParamNames.uri: uri,
+          ParamNames.perPage: perPage,
+          ParamNames.offset: offset,
+        },
+      );
+      if (childrenJson == null) {
+        return [];
+      }
+      var list = jsonDecode(childrenJson) as List<dynamic>;
+      return list
+          .map((item) =>
+              ContentItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on Exception catch (e) {
+      _logException(MethodNames.getChildrenOfItem, e);
       rethrow;
     }
   }

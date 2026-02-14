@@ -83,6 +83,10 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     private val methodGetCapabilities = "getCapabilities"
     private val methodGetLibraryState = "getLibraryState"
 
+    //contentApi
+    private val methodGetRecommendedContentItems = "getRecommendedContentItems"
+    private val methodGetChildrenOfItem = "getChildrenOfItem"
+
     //imagesApi
     private val methodGetImage = "getImage"
 
@@ -98,6 +102,9 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     private val paramTrackIndex = "trackIndex"
     private val paramRepeatMode = "repeatMode"
     private val paramShuffle = "shuffle"
+    private val paramContentType = "contentType"
+    private val paramPerPage = "perPage"
+    private val paramOffset = "offset"
 
     private val errorConnecting = "errorConnecting"
     private val errorDisconnecting = "errorDisconnecting"
@@ -114,6 +121,7 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     private var spotifyConnectApi: SpotifyConnectApi? = null
     private var spotifyUserApi: SpotifyUserApi? = null
     private var spotifyImagesApi: SpotifyImagesApi? = null
+    private var spotifyContentApi: SpotifyContentApi? = null
 
     // PKCE code verifier
     private var codeVerifier: String? = null
@@ -176,6 +184,7 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
             spotifyUserApi = SpotifyUserApi(spotifyAppRemote, result)
             spotifyImagesApi = SpotifyImagesApi(spotifyAppRemote, result)
             spotifyConnectApi = SpotifyConnectApi(spotifyAppRemote, result)
+            spotifyContentApi = SpotifyContentApi(spotifyAppRemote, result)
         }
 
         when (call.method) {
@@ -207,6 +216,9 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
             methodRemoveFromLibrary -> spotifyUserApi?.removeFromUserLibrary(call.argument(paramSpotifyUri))
             methodGetCapabilities -> spotifyUserApi?.getCapabilities()
             methodGetLibraryState -> spotifyUserApi?.getLibraryState(call.argument(paramSpotifyUri))
+            //contentApi calls
+            methodGetRecommendedContentItems -> spotifyContentApi?.getRecommendedContentItems(call.argument(paramContentType))
+            methodGetChildrenOfItem -> spotifyContentApi?.getChildrenOfItem(call.argument("uri"), call.argument(paramPerPage), call.argument(paramOffset))
             //imageApi calls
             methodGetImage -> spotifyImagesApi?.getImage(call.argument(paramImageUri), call.argument(paramImageDimension))
             // method call is not implemented yet

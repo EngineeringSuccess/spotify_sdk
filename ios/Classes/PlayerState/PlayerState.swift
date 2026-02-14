@@ -75,6 +75,18 @@ struct State {
         ]
     }
     
+    static func contentItemDictionary(_ item: SPTAppRemoteContentItem) -> [String : Any] {
+        return [
+            "id": item.identifier ?? "",
+            "uri": item.uri ?? "",
+            "title": item.title ?? "",
+            "subtitle": item.subtitle ?? "",
+            "image_uri": item.imageIdentifier ?? "",
+            "playable": item.isPlayable,
+            "has_children": item.isContainer,
+        ]
+    }
+
     static func libraryStateDictionary(_ libraryState: SPTAppRemoteLibraryState) -> [String : Any] {
         return [
             "uri": libraryState.uri,

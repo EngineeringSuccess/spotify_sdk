@@ -26,6 +26,10 @@ public class SpotifySdkConstants
     public static let methodRemoveFromLibrary = "removeFromLibrary"
     public static let methodGetCapabilities = "getCapabilities"
 
+    //content api
+    public static let methodGetRecommendedContentItems = "getRecommendedContentItems"
+    public static let methodGetChildrenOfItem = "getChildrenOfItem"
+
     //images api
     public static let methodGetImage = "getImage"
 
@@ -43,6 +47,10 @@ public class SpotifySdkConstants
     public static let paramTrackIndex = "trackIndex"
     public static let scope = "scope"
     public static let getLibraryState = "getLibraryState"
+
+    public static let paramContentType = "contentType"
+    public static let paramPerPage = "perPage"
+    public static let paramOffset = "offset"
 
     // Token Swap parameters (iOS only)
     public static let paramTokenSwapUrl = "tokenSwapUrl"

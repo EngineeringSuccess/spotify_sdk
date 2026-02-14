@@ -107,6 +107,13 @@ class MethodNames {
 
   /// method name for [switchToLocalDevice]
   static const String switchToLocalDevice = "switchToLocalDevice";
+
+  /// method name for [getRecommendedContentItems]
+  static const String getRecommendedContentItems =
+      'getRecommendedContentItems';
+
+  /// method name for [getChildrenOfItem]
+  static const String getChildrenOfItem = 'getChildrenOfItem';
 }
 
 /// Holds the names for all parameters that are used in the package
@@ -164,4 +171,13 @@ class ParamNames {
 
   /// param name for [tokenRefreshUrl] (iOS Token Swap)
   static const String tokenRefreshUrl = 'tokenRefreshUrl';
+
+  /// param name for [contentType]
+  static const String contentType = 'contentType';
+
+  /// param name for [perPage]
+  static const String perPage = 'perPage';
+
+  /// param name for [offset]
+  static const String offset = 'offset';
 }
