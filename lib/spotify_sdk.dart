@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
@@ -16,6 +17,7 @@ import 'models/image_uri.dart';
 import 'models/library_state.dart';
 import 'models/player_context.dart';
 import 'models/player_state.dart';
+import 'models/content_item.dart';
 import 'models/user_status.dart';
 import 'platform_channels.dart';
 
@@ -24,6 +26,59 @@ export 'package:spotify_sdk/enums/podcast_playback_speed.dart';
 export 'package:spotify_sdk/enums/repeat_mode_enum.dart';
 export 'package:spotify_sdk/extensions/image_dimension_extension.dart';
 export 'package:spotify_sdk/extensions/podcast_playback_speed_extension.dart';
+export 'package:spotify_sdk/models/content_item.dart';
+
+/// Result of Spotify authorization with PKCE
+///
+/// Platform differences:
+/// - **Android**: Returns [authorizationCode] and [codeVerifier].
+///   Send these to your backend to exchange for tokens.
+/// - **iOS**: Returns [accessToken], [refreshToken], and [expiresAt].
+///   iOS SDK handles PKCE internally. Send [refreshToken] to your backend for storage.
+class SpotifyAuthorizationResult {
+  /// Authorization code (Android only)
+  /// Exchange this with your backend along with [codeVerifier]
+  final String? authorizationCode;
+
+  /// PKCE code verifier (Android only)
+  /// Required for backend token exchange
+  final String? codeVerifier;
+
+  /// Access token (iOS only)
+  /// Use this to connect to Spotify Remote
+  final String? accessToken;
+
+  /// Refresh token (iOS only)
+  /// Send this to your backend for persistent token management
+  final String? refreshToken;
+
+  /// Token expiry timestamp in seconds since epoch (iOS only)
+  final double? expiresAt;
+
+  /// Returns true if this is an Android result (has authorization code)
+  bool get isAuthorizationCode => authorizationCode != null;
+
+  /// Returns true if this is an iOS result (has tokens directly)
+  bool get isTokenResult => accessToken != null;
+
+  SpotifyAuthorizationResult._({
+    this.authorizationCode,
+    this.codeVerifier,
+    this.accessToken,
+    this.refreshToken,
+    this.expiresAt,
+  });
+
+  factory SpotifyAuthorizationResult.fromMap(Map<dynamic, dynamic> map) {
+    return SpotifyAuthorizationResult._(
+      authorizationCode: map['authorizationCode'] as String?,
+      codeVerifier: map['codeVerifier'] as String?,
+      accessToken: map['accessToken'] as String?,
+      refreshToken: map['refreshToken'] as String?,
+      expiresAt: map['expiresAt'] as double?,
+    );
+  }
+}
 
 ///
 /// [SpotifySdk] holds the functionality to connect via spotify remote or
@@ -96,7 +151,73 @@ class SpotifySdk {
     }
   }
 
+  /// Returns authorization result with PKCE support
+  ///
+  /// This is the recommended method for Spotify OAuth after Nov 2025.
+  /// Uses PKCE (Proof Key for Code Exchange) for secure authorization.
+  ///
+  /// Required parameters are the [clientId] and the [redirectUrl] to
+  /// authenticate with the Spotify Api.
+  /// Also you have to provide a [scope] like
+  /// "app-remote-control, user-modify-playback-state, playlist-read-private,
+  /// playlist-modify-public,user-read-currently-playing"
+  /// See https://developer.spotify.com/documentation/general/guides/scopes/
+  ///
+  /// **iOS Token Swap (optional but recommended):**
+  /// Pass [tokenSwapURL] and [tokenRefreshURL] to enable refresh token support
+  /// on iOS. The iOS SDK will call these backend endpoints directly to exchange
+  /// the authorization code for tokens. Without these URLs, iOS uses clientOnly
+  /// mode which does NOT return refresh tokens.
+  ///
+  /// Returns [SpotifyAuthorizationResult] which differs by platform:
+  /// - **Android**: Contains [authorizationCode] and [codeVerifier].
+  ///   Send these to your backend to exchange for access/refresh tokens.
+  /// - **iOS with Token Swap**: Contains [accessToken], [refreshToken], and [expiresAt].
+  ///   iOS SDK handles token exchange via the provided URLs.
+  /// - **iOS without Token Swap**: Contains only [accessToken] and [expiresAt].
+  ///   No refresh token (clientOnly mode).
+  ///
+  /// Throws a [PlatformException] if authorization failed.
+  /// Throws a [MissingPluginException] if the method is not implemented.
+  static Future<SpotifyAuthorizationResult> authorize({
+    required String clientId,
+    required String redirectUrl,
+    required String scope,
+    String? tokenSwapURL,
+    String? tokenRefreshURL,
+  }) async {
+    try {
+      final params = {
+        ParamNames.clientId: clientId,
+        ParamNames.redirectUrl: redirectUrl,
+        ParamNames.scope: scope,
+      };
+
+      // iOS Token Swap URLs (only used on iOS)
+      if (Platform.isIOS && tokenSwapURL != null && tokenRefreshURL != null) {
+        params['tokenSwapURL'] = tokenSwapURL;
+        params['tokenRefreshURL'] = tokenRefreshURL;
+      }
+
+      final result = await _channel.invokeMethod(MethodNames.getAccessToken, params);
+
+      if (result is Map) {
+        return SpotifyAuthorizationResult.fromMap(result);
+      }
+
+      // Fallback for unexpected string result (legacy behavior)
+      return SpotifyAuthorizationResult._(accessToken: result.toString());
+    } on Exception catch (e) {
+      _logException(MethodNames.getAccessToken, e);
+      rethrow;
+    }
+  }
+
   /// Returns an access token as a [String]
+  ///
+  /// @Deprecated: Use [authorize] instead for PKCE support.
+  /// This method is kept for backward compatibility but may not work
+  /// after Spotify's Implicit Grant deprecation (Nov 2025).
   ///
   /// Required parameters are the [clientId] and the [redirectUrl] to
   /// authenticate with the Spotify Api.
@@ -111,6 +232,7 @@ class SpotifySdk {
   /// failed.
   /// Throws a [MissingPluginException] if the method is not implemented on
   /// the native platforms.
+  @Deprecated('Use authorize() instead for PKCE support')
   static Future<String> getAccessToken(
       {required String clientId,
       required String redirectUrl,
@@ -118,15 +240,21 @@ class SpotifySdk {
       bool asRadio = false,
       String? scope}) async {
     try {
-      final authorization =
-          await _channel.invokeMethod(MethodNames.getAccessToken, {
+      final result = await _channel.invokeMethod(MethodNames.getAccessToken, {
         ParamNames.clientId: clientId,
         ParamNames.redirectUrl: redirectUrl,
         ParamNames.scope: scope,
         ParamNames.spotifyUri: spotifyUri,
         ParamNames.asRadio: asRadio,
       });
-      return authorization.toString();
+
+      // Handle new map response format
+      if (result is Map) {
+        // Return accessToken if available (iOS), otherwise return authorizationCode (Android)
+        return (result['accessToken'] ?? result['authorizationCode'] ?? '').toString();
+      }
+
+      return result.toString();
     } on Exception catch (e) {
       _logException(MethodNames.getAccessToken, e);
       rethrow;
@@ -642,6 +770,73 @@ class SpotifySdk {
           MethodNames.setRepeatMode, {ParamNames.repeatMode: repeatMode.index});
     } on Exception catch (e) {
       _logException(MethodNames.setRepeatMode, e);
+      rethrow;
+    }
+  }
+
+  /// Gets recommended content items for the given [contentType]
+  ///
+  /// The [contentType] specifies the type of content to retrieve
+  /// (e.g. 'default-cars' for car mode recommendations).
+  /// Returns a list of [ContentItem] from the Spotify ContentApi.
+  /// Throws a [PlatformException] if fetching content items failed.
+  /// Throws a [MissingPluginException] if the method is not implemented on
+  /// the native platforms.
+  static Future<List<ContentItem>> getRecommendedContentItems({
+    required String contentType,
+  }) async {
+    try {
+      var contentItemsJson = await _channel.invokeMethod<String>(
+        MethodNames.getRecommendedContentItems,
+        {ParamNames.contentType: contentType},
+      );
+      if (contentItemsJson == null) {
+        return [];
+      }
+      var list = jsonDecode(contentItemsJson) as List<dynamic>;
+      return list
+          .map((item) =>
+              ContentItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on Exception catch (e) {
+      _logException(MethodNames.getRecommendedContentItems, e);
+      rethrow;
+    }
+  }
+
+  /// Gets children of a content item identified by [uri]
+  ///
+  /// Use this to browse into containers returned by
+  /// [getRecommendedContentItems]. For example, "Your Library" is a
+  /// container whose children are your saved albums, playlists, etc.
+  /// Returns a list of [ContentItem] from the Spotify ContentApi.
+  /// Throws a [PlatformException] if fetching children failed.
+  /// Throws a [MissingPluginException] if the method is not implemented on
+  /// the native platforms.
+  static Future<List<ContentItem>> getChildrenOfItem({
+    required String uri,
+    int perPage = 20,
+    int offset = 0,
+  }) async {
+    try {
+      var childrenJson = await _channel.invokeMethod<String>(
+        MethodNames.getChildrenOfItem,
+        {
+          ParamNames.uri: uri,
+          ParamNames.perPage: perPage,
+          ParamNames.offset: offset,
+        },
+      );
+      if (childrenJson == null) {
+        return [];
+      }
+      var list = jsonDecode(childrenJson) as List<dynamic>;
+      return list
+          .map((item) =>
+              ContentItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on Exception catch (e) {
+      _logException(MethodNames.getChildrenOfItem, e);
       rethrow;
     }
   }

@@ -23,6 +23,9 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 import kotlinx.event.SetEvent
 import kotlinx.event.event
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
 
 class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, PluginRegistry.ActivityResultListener {
 
@@ -80,6 +83,10 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     private val methodGetCapabilities = "getCapabilities"
     private val methodGetLibraryState = "getLibraryState"
 
+    //contentApi
+    private val methodGetRecommendedContentItems = "getRecommendedContentItems"
+    private val methodGetChildrenOfItem = "getChildrenOfItem"
+
     //imagesApi
     private val methodGetImage = "getImage"
 
@@ -95,6 +102,9 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     private val paramTrackIndex = "trackIndex"
     private val paramRepeatMode = "repeatMode"
     private val paramShuffle = "shuffle"
+    private val paramContentType = "contentType"
+    private val paramPerPage = "perPage"
+    private val paramOffset = "offset"
 
     private val errorConnecting = "errorConnecting"
     private val errorDisconnecting = "errorDisconnecting"
@@ -111,6 +121,10 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     private var spotifyConnectApi: SpotifyConnectApi? = null
     private var spotifyUserApi: SpotifyUserApi? = null
     private var spotifyImagesApi: SpotifyImagesApi? = null
+    private var spotifyContentApi: SpotifyContentApi? = null
+
+    // PKCE code verifier
+    private var codeVerifier: String? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         this.applicationContext = binding.applicationContext
@@ -170,6 +184,7 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
             spotifyUserApi = SpotifyUserApi(spotifyAppRemote, result)
             spotifyImagesApi = SpotifyImagesApi(spotifyAppRemote, result)
             spotifyConnectApi = SpotifyConnectApi(spotifyAppRemote, result)
+            spotifyContentApi = SpotifyContentApi(spotifyAppRemote, result)
         }
 
         when (call.method) {
@@ -201,6 +216,9 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
             methodRemoveFromLibrary -> spotifyUserApi?.removeFromUserLibrary(call.argument(paramSpotifyUri))
             methodGetCapabilities -> spotifyUserApi?.getCapabilities()
             methodGetLibraryState -> spotifyUserApi?.getLibraryState(call.argument(paramSpotifyUri))
+            //contentApi calls
+            methodGetRecommendedContentItems -> spotifyContentApi?.getRecommendedContentItems(call.argument(paramContentType))
+            methodGetChildrenOfItem -> spotifyContentApi?.getChildrenOfItem(call.argument("uri"), call.argument(paramPerPage), call.argument(paramOffset))
             //imageApi calls
             methodGetImage -> spotifyImagesApi?.getImage(call.argument(paramImageUri), call.argument(paramImageDimension))
             // method call is not implemented yet
@@ -306,9 +324,8 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     }
 
     private fun getAccessToken(clientId: String?, redirectUrl: String?, scope: String?, result: Result) {
-        if (applicationActivity == null) {
-            throw IllegalStateException("getAccessToken needs a foreground activity")
-        }
+        val activity = applicationActivity
+            ?: throw IllegalStateException("getAccessToken needs a foreground activity")
 
         if (clientId.isNullOrBlank() || redirectUrl.isNullOrBlank()) {
             result.error(errorConnecting, "client id or redirectUrl are not set or have invalid format", "")
@@ -317,12 +334,41 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
             val scopeArray = scope?.split(",")?.toTypedArray()
             methodConnectToSpotify.checkAndSetPendingOperation(result)
 
-            val builder = AuthorizationRequest.Builder(clientId, AuthorizationResponse.Type.TOKEN, redirectUrl)
+            // Generate PKCE parameters
+            codeVerifier = generateCodeVerifier()
+            val codeChallenge = generateCodeChallenge(codeVerifier!!)
+
+            Log.d(loggingTag, "getAccessToken - clientId: $clientId")
+            Log.d(loggingTag, "getAccessToken - redirectUrl: $redirectUrl")
+            Log.d(loggingTag, "getAccessToken - scope: $scope")
+            Log.d(loggingTag, "getAccessToken - codeVerifier: ${codeVerifier?.take(20)}...")
+            Log.d(loggingTag, "getAccessToken - codeChallenge: ${codeChallenge.take(20)}...")
+
+            val builder = AuthorizationRequest.Builder(clientId, AuthorizationResponse.Type.CODE, redirectUrl)
             builder.setScopes(scopeArray)
+            builder.setCustomParam("code_challenge_method", "S256")
+            builder.setCustomParam("code_challenge", codeChallenge)
             val request = builder.build()
 
-            AuthorizationClient.openLoginActivity(applicationActivity, requestCodeAuthentication, request)
+            Log.d(loggingTag, "getAccessToken - Opening login activity with Type.CODE")
+
+            AuthorizationClient.openLoginActivity(activity, requestCodeAuthentication, request)
         }
+    }
+
+    private fun generateCodeVerifier(): String {
+        val secureRandom = SecureRandom()
+        val codeVerifier = ByteArray(32)
+        secureRandom.nextBytes(codeVerifier)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(codeVerifier)
+    }
+
+    private fun generateCodeChallenge(codeVerifier: String): String {
+        val bytes = codeVerifier.toByteArray(Charsets.US_ASCII)
+        val messageDigest = MessageDigest.getInstance("SHA-256")
+        messageDigest.update(bytes, 0, bytes.size)
+        val digest = messageDigest.digest()
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
     }
 
     private fun disconnectFromSpotify(result: Result) {
@@ -354,17 +400,46 @@ class SpotifySdkPlugin : MethodCallHandler, FlutterPlugin, ActivityAware, Plugin
     }
 
     private fun authFlow(resultCode: Int, data: Intent?) {
+        Log.d(loggingTag, "authFlow called - resultCode: $resultCode")
 
         val response: AuthorizationResponse = AuthorizationClient.getResponse(resultCode, data)
         val result = pendingOperation!!.result
         pendingOperation = null
 
+        Log.d(loggingTag, "authFlow - response.type: ${response.type}")
+        Log.d(loggingTag, "authFlow - response.code: ${response.code}")
+        Log.d(loggingTag, "authFlow - response.accessToken: ${response.accessToken?.take(20)}...")
+        Log.d(loggingTag, "authFlow - response.error: ${response.error}")
+        Log.d(loggingTag, "authFlow - response.expiresIn: ${response.expiresIn}")
+        Log.d(loggingTag, "authFlow - codeVerifier: ${codeVerifier?.take(20)}...")
+
         when (response.type) {
-            AuthorizationResponse.Type.TOKEN -> {
-                result.success(response.accessToken)
+            AuthorizationResponse.Type.CODE -> {
+                Log.d(loggingTag, "authFlow - Got CODE response")
+                // Return authorization code and code verifier
+                val resultMap = mapOf(
+                    "authorizationCode" to response.code,
+                    "codeVerifier" to codeVerifier
+                )
+                result.success(resultMap)
             }
-            AuthorizationResponse.Type.ERROR -> result.error(errorAuthenticationToken, "Authentication went wrong", response.error)
-            else -> result.notImplemented()
+            AuthorizationResponse.Type.TOKEN -> {
+                Log.d(loggingTag, "authFlow - Got TOKEN response")
+                // Return access token (implicit grant or PKCE with internal exchange)
+                val resultMap = mapOf(
+                    "accessToken" to response.accessToken,
+                    "expiresIn" to response.expiresIn
+                )
+                result.success(resultMap)
+            }
+            AuthorizationResponse.Type.ERROR -> {
+                Log.e(loggingTag, "authFlow - Got ERROR response: ${response.error}")
+                result.error(errorAuthenticationToken, "Authentication went wrong", response.error)
+            }
+            else -> {
+                Log.e(loggingTag, "authFlow - Got unexpected response type: ${response.type}")
+                result.notImplemented()
+            }
         }
     }
 

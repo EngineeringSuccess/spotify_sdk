@@ -4,6 +4,7 @@ import SpotifyiOS
 public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
     private static var instance = SwiftSpotifySdkPlugin()
     private var appRemote: SPTAppRemote?
+    private var sessionManager: SPTSessionManager?
     private var connectionStatusHandler: ConnectionStatusHandler?
     private var playerStateHandler: PlayerStateHandler?
     private var playerContextHandler: PlayerContextHandler?
@@ -77,19 +78,64 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
                     result(FlutterError(code: "Arguments Error", message: "One or more arguments are missing", details: nil))
                     return
             }
-            connectionStatusHandler?.tokenResult = result
-            let spotifyUri: String = swiftArguments[SpotifySdkConstants.paramSpotifyUri] as? String ?? ""
-            
-            do {
-                try connectToSpotify(clientId: clientID, redirectURL: url, spotifyUri: spotifyUri, asRadio: swiftArguments[SpotifySdkConstants.paramAsRadio] as? Bool, additionalScopes: swiftArguments[SpotifySdkConstants.scope] as? String)
-            }
-            catch SpotifyError.redirectURLInvalid {
+
+            guard let redirectURL = URL(string: url) else {
                 result(FlutterError(code: "errorConnecting", message: "Redirect URL is not set or has invalid format", details: nil))
-            }
-            catch {
-                result(FlutterError(code: "CouldNotFindSpotifyApp", message: "The Spotify app is not installed on the device", details: nil))
                 return
             }
+
+            // Use SPTSessionManager with Token Swap for iOS
+            // Token Swap allows backend to exchange code using client_secret and return refresh tokens
+            let configuration = SPTConfiguration(clientID: clientID, redirectURL: redirectURL)
+
+            // Configure Token Swap URLs - iOS SDK will call these endpoints directly
+            // The backend exchanges the code using client_secret and returns tokens
+            if let tokenSwapURL = swiftArguments["tokenSwapURL"] as? String,
+               let tokenRefreshURL = swiftArguments["tokenRefreshURL"] as? String {
+                configuration.tokenSwapURL = URL(string: tokenSwapURL)
+                configuration.tokenRefreshURL = URL(string: tokenRefreshURL)
+                print("[SpotifySDK] Using Token Swap: \(tokenSwapURL)")
+            } else {
+                print("[SpotifySDK] WARNING: No tokenSwapURL provided, using clientOnly mode (no refresh tokens)")
+            }
+
+            sessionManager = SPTSessionManager(configuration: configuration, delegate: self)
+
+            connectionStatusHandler?.tokenResult = result
+
+            // Parse and map scopes from string to SPTScope
+            var requestedScopes: SPTScope = []
+            if let scopeString = swiftArguments[SpotifySdkConstants.scope] as? String {
+                let scopeArray = scopeString.components(separatedBy: ",")
+                for scope in scopeArray {
+                    let trimmedScope = scope.trimmingCharacters(in: .whitespaces)
+                    switch trimmedScope {
+                    case "user-read-playback-state":
+                        requestedScopes.insert(.userReadPlaybackState)
+                    case "user-modify-playback-state":
+                        requestedScopes.insert(.userModifyPlaybackState)
+                    case "user-read-currently-playing":
+                        requestedScopes.insert(.userReadCurrentlyPlaying)
+                    case "user-read-recently-played":
+                        requestedScopes.insert(.userReadRecentlyPlayed)
+                    case "app-remote-control":
+                        requestedScopes.insert(.appRemoteControl)
+                    case "playlist-read-private":
+                        requestedScopes.insert(.playlistReadPrivate)
+                    case "playlist-read-collaborative":
+                        requestedScopes.insert(.playlistReadCollaborative)
+                    case "user-library-read":
+                        requestedScopes.insert(.userLibraryRead)
+                    default:
+                        break
+                    }
+                }
+            }
+
+            // Use .default option when Token Swap is configured (to get refresh tokens)
+            // Fall back to .clientOnly if no Token Swap URLs provided
+            let hasTokenSwap = swiftArguments["tokenSwapURL"] != nil
+            sessionManager?.initiateSession(with: requestedScopes, options: hasTokenSwap ? .default : .clientOnly, campaign: nil)
         case SpotifySdkConstants.methodGetImage:
             guard let appRemote = appRemote else {
                 result(FlutterError(code: "Connection Error", message: "AppRemote is null", details: nil))
@@ -328,6 +374,70 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
 
                 result(State.libraryStateDictionary(libraryState).json)
             })
+        case SpotifySdkConstants.methodGetRecommendedContentItems:
+            guard let appRemote = appRemote else {
+                result(FlutterError(code: "Connection Error", message: "AppRemote is null", details: nil))
+                return
+            }
+            guard let swiftArguments = call.arguments as? [String:Any],
+                let contentType = swiftArguments[SpotifySdkConstants.paramContentType] as? String else {
+                    result(FlutterError(code: "Arguments Error", message: "contentType is not set", details: nil))
+                    return
+            }
+            appRemote.contentAPI?.fetchRecommendedContentItems(forType: contentType, flattenContainers: false, callback: { (contentItems, error) in
+                guard error == nil else {
+                    result(FlutterError(code: "ContentAPI Error", message: error?.localizedDescription, details: nil))
+                    return
+                }
+                guard let items = contentItems as? [SPTAppRemoteContentItem] else {
+                    result(FlutterError(code: "ContentAPI Error", message: "Content items are empty", details: nil))
+                    return
+                }
+                let dictionaries = items.map { State.contentItemDictionary($0) }
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: dictionaries, options: [])
+                    result(String(data: jsonData, encoding: .utf8))
+                } catch {
+                    result(FlutterError(code: "ContentAPI Error", message: "Failed to serialize content items", details: nil))
+                }
+            })
+        case SpotifySdkConstants.methodGetChildrenOfItem:
+            guard let appRemote = appRemote else {
+                result(FlutterError(code: "Connection Error", message: "AppRemote is null", details: nil))
+                return
+            }
+            guard let swiftArguments = call.arguments as? [String:Any],
+                let uri = swiftArguments["uri"] as? String else {
+                    result(FlutterError(code: "Arguments Error", message: "uri is not set", details: nil))
+                    return
+            }
+            appRemote.contentAPI?.fetchContentItem(forURI: uri, callback: { (contentItemResult, error) in
+                guard error == nil else {
+                    result(FlutterError(code: "ContentAPI Error", message: error?.localizedDescription, details: nil))
+                    return
+                }
+                guard let contentItem = contentItemResult as? SPTAppRemoteContentItem else {
+                    result(FlutterError(code: "ContentAPI Error", message: "Content item not found", details: nil))
+                    return
+                }
+                appRemote.contentAPI?.fetchChildren(of: contentItem, callback: { (children, error) in
+                    guard error == nil else {
+                        result(FlutterError(code: "ContentAPI Error", message: error?.localizedDescription, details: nil))
+                        return
+                    }
+                    guard let items = children as? [SPTAppRemoteContentItem] else {
+                        result(FlutterError(code: "ContentAPI Error", message: "Children are empty", details: nil))
+                        return
+                    }
+                    let dictionaries = items.map { State.contentItemDictionary($0) }
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: dictionaries, options: [])
+                        result(String(data: jsonData, encoding: .utf8))
+                    } catch {
+                        result(FlutterError(code: "ContentAPI Error", message: "Failed to serialize children", details: nil))
+                    }
+                })
+            })
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -377,6 +487,17 @@ public class SwiftSpotifySdkPlugin: NSObject, FlutterPlugin {
 
 extension SwiftSpotifySdkPlugin {
     public func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        print("[SpotifySDK] application:open:url called with: \(url)")
+
+        // Try SPTSessionManager first
+        if let sessionManager = sessionManager {
+            print("[SpotifySDK] Forwarding to sessionManager")
+            sessionManager.application(application, open: url, options: options)
+            return true
+        }
+
+        // Fallback to old SPTAppRemote flow
+        print("[SpotifySDK] Falling back to setAccessTokenFromURL")
         setAccessTokenFromURL(url: url)
         return true
     }
@@ -392,6 +513,13 @@ extension SwiftSpotifySdkPlugin {
                 return false
         }
 
+        // Try SPTSessionManager first
+        if let sessionManager = sessionManager {
+            sessionManager.application(application, open: url, options: [:])
+            return true
+        }
+
+        // Fallback to old SPTAppRemote flow
         setAccessTokenFromURL(url: url)
         return false
     }
@@ -415,5 +543,40 @@ extension SwiftSpotifySdkPlugin {
 
         appRemote.connectionParameters.accessToken = token
         appRemote.connect()
+    }
+}
+
+
+// MARK: - SPTSessionManagerDelegate
+extension SwiftSpotifySdkPlugin: SPTSessionManagerDelegate {
+    public func sessionManager(manager: SPTSessionManager, didInitiate session: SPTSession) {
+        // iOS SDK handles PKCE internally and returns tokens directly
+        // Return accessToken, refreshToken, and expiresAt
+        let resultMap: [String: Any] = [
+            "accessToken": session.accessToken,
+            "refreshToken": session.refreshToken,
+            "expiresAt": session.expirationDate.timeIntervalSince1970
+        ]
+        connectionStatusHandler?.tokenResult?(resultMap)
+        connectionStatusHandler?.tokenResult = nil
+
+        // Clear sessionManager so future callbacks (from authorizeAndPlayURI) go to appRemote
+        sessionManager = nil
+    }
+
+    public func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
+        connectionStatusHandler?.tokenResult?(FlutterError(
+            code: "authenticationTokenError",
+            message: error.localizedDescription,
+            details: nil
+        ))
+        connectionStatusHandler?.tokenResult = nil
+    }
+
+    public func sessionManager(manager: SPTSessionManager, didRenew session: SPTSession) {
+        // Token was refreshed
+        if let appRemote = appRemote {
+            appRemote.connectionParameters.accessToken = session.accessToken
+        }
     }
 }
