@@ -135,6 +135,12 @@ class ParamNames {
   /// param name for [tokenSwapUrl]
   static const String tokenSwapUrl = 'tokenSwapUrl';
 
+  /// param name for [tokenSwapURL]
+  static const String tokenSwapURL = 'tokenSwapURL';
+
+  /// param name for [tokenRefreshURL]
+  static const String tokenRefreshURL = 'tokenRefreshURL';
+
   /// param name for [playerName]
   static const String playerName = 'playerName';
 

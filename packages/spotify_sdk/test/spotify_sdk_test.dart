@@ -35,6 +35,21 @@ class MockSpotifySdkPlatform extends SpotifySdkPlatform
   }
 
   @override
+  Future<SpotifyAuthorizationResult> authorize({
+    required String clientId,
+    required String redirectUrl,
+    required String scope,
+    String? tokenSwapURL,
+    String? tokenRefreshURL,
+  }) async {
+    calls.add('authorize');
+    return const SpotifyAuthorizationResult(
+      authorizationCode: 'mock_code',
+      codeVerifier: 'mock_verifier',
+    );
+  }
+
+  @override
   Future<String> getSwapToken({
     required String clientId,
     required String redirectUrl,
@@ -263,6 +278,18 @@ void main() {
       );
       expect(token, 'mock_token');
       expect(mockPlatform.calls, contains('getAccessToken'));
+    });
+
+    test('authorize delegates to platform', () async {
+      final result = await SpotifySdk.authorize(
+        clientId: 'client',
+        redirectUrl: 'callback',
+        scope: 'app-remote-control',
+      );
+
+      expect(mockPlatform.calls, contains('authorize'));
+      expect(result.authorizationCode, 'mock_code');
+      expect(result.codeVerifier, 'mock_verifier');
     });
 
     test('getSwapToken delegates to platform', () async {

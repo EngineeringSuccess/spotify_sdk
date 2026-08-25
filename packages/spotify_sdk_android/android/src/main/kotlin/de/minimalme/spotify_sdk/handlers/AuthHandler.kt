@@ -2,6 +2,7 @@ package de.minimalme.spotify_sdk.handlers
 
 import android.content.Intent
 import android.util.Log
+import android.util.Base64
 import com.spotify.android.appremote.api.ConnectionParams
 import com.spotify.android.appremote.api.Connector.ConnectionListener
 import com.spotify.android.appremote.api.SpotifyAppRemote
@@ -13,11 +14,14 @@ import de.minimalme.spotify_sdk.SpotifyErrorMapper
 import de.minimalme.spotify_sdk.SpotifySdkConstants
 import de.minimalme.spotify_sdk.subscriptions.*
 import io.flutter.plugin.common.MethodChannel.Result
+import java.security.MessageDigest
+import java.security.SecureRandom
 
 class AuthHandler(private val remoteManager: RemoteManager) {
 
     private val loggingTag = "spotify_sdk"
     val requestCodeAuthentication = 1337
+    private var codeVerifier: String? = null
 
     fun connectToSpotify(clientId: String?, redirectUrl: String?, result: Result) {
         if (clientId.isNullOrBlank() || redirectUrl.isNullOrBlank()) {
@@ -74,8 +78,12 @@ class AuthHandler(private val remoteManager: RemoteManager) {
         val scopeArray = scope?.split(",")?.toTypedArray()
         with(remoteManager) { SpotifySdkConstants.METHOD_GET_ACCESS_TOKEN.checkAndSetPendingOperation(result) }
 
-        val builder = AuthorizationRequest.Builder(clientId, AuthorizationResponse.Type.TOKEN, redirectUrl)
+        codeVerifier = generateCodeVerifier()
+        val codeChallenge = generateCodeChallenge(requireNotNull(codeVerifier))
+        val builder = AuthorizationRequest.Builder(clientId, AuthorizationResponse.Type.CODE, redirectUrl)
         builder.setScopes(scopeArray)
+        builder.setCustomParam("code_challenge_method", "S256")
+        builder.setCustomParam("code_challenge", codeChallenge)
         val request = builder.build()
         AuthorizationClient.openLoginActivity(activity, requestCodeAuthentication, request)
     }
@@ -127,8 +135,12 @@ class AuthHandler(private val remoteManager: RemoteManager) {
             val pending = remoteManager.pendingOperation
             if (pending != null) {
                 when (response.type) {
-                    AuthorizationResponse.Type.TOKEN -> pending.result.success(response.accessToken)
-                    AuthorizationResponse.Type.CODE -> pending.result.success(response.code)
+                    AuthorizationResponse.Type.TOKEN -> pending.result.success(
+                        mapOf("accessToken" to response.accessToken, "expiresIn" to response.expiresIn)
+                    )
+                    AuthorizationResponse.Type.CODE -> pending.result.success(
+                        mapOf("authorizationCode" to response.code, "codeVerifier" to codeVerifier)
+                    )
                     AuthorizationResponse.Type.ERROR -> pending.result.error("authenticationError", response.error, null)
                     else -> pending.result.error("authenticationError", "Authentication cancelled or failed", null)
                 }
@@ -137,5 +149,16 @@ class AuthHandler(private val remoteManager: RemoteManager) {
             return true
         }
         return false
+    }
+
+    private fun generateCodeVerifier(): String {
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+    }
+
+    private fun generateCodeChallenge(verifier: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII))
+        return Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
     }
 }

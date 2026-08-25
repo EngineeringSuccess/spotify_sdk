@@ -108,6 +108,9 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
     }
 
     public func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        if authHandler.handleOpenURL(application, url: url, options: options) {
+            return true
+        }
         setAccessTokenFromURL(url: url)
         return true
     }
@@ -116,6 +119,9 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
         guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
               let url = userActivity.webpageURL else {
             return false
+        }
+        if authHandler.handleOpenURL(application, url: url, options: [:]) {
+            return true
         }
         setAccessTokenFromURL(url: url)
         return false
@@ -147,12 +153,18 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
 extension SpotifySdkPlugin: UIWindowSceneDelegate {
     public func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         guard let url = URLContexts.first?.url else { return }
+        if authHandler.handleOpenURL(UIApplication.shared, url: url, options: [:]) {
+            return
+        }
         setAccessTokenFromURL(url: url)
     }
 
     public func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
         guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
               let url = userActivity.webpageURL else {
+            return
+        }
+        if authHandler.handleOpenURL(UIApplication.shared, url: url, options: [:]) {
             return
         }
         setAccessTokenFromURL(url: url)

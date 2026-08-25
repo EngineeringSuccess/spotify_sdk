@@ -5,6 +5,13 @@ analyzer:
     - "**/*.g.dart"
     - "lib/generated/**"
     - ".github/**"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
   errors:
     close_sinks: ignore
     strict_raw_type: ignore

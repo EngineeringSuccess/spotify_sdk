@@ -42,6 +42,21 @@ class SpotifySdk {
     scope: scope,
   );
 
+  /// Authorizes Spotify with PKCE.
+  static Future<SpotifyAuthorizationResult> authorize({
+    required String clientId,
+    required String redirectUrl,
+    required String scope,
+    String? tokenSwapURL,
+    String? tokenRefreshURL,
+  }) => SpotifySdkPlatform.instance.authorize(
+    clientId: clientId,
+    redirectUrl: redirectUrl,
+    scope: scope,
+    tokenSwapURL: tokenSwapURL,
+    tokenRefreshURL: tokenRefreshURL,
+  );
+
   /// Returns a swap token for Spotify using token swap authentication.
   static Future<String> getSwapToken({
     required String clientId,

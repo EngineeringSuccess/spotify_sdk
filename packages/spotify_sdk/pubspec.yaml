@@ -1,4 +1,5 @@
 name: spotify_sdk
+publish_to: none
 description: A Flutter plugin for communicating with Spotify App Remote SDK and Spotify Web Playback SDK.
 version: 4.0.0
 homepage: https://github.com/brim-borium/spotify_sdk
@@ -14,15 +15,31 @@ resolution: workspace
 
 environment:
   sdk: ^3.13.0
-  flutter: '>=3.47.1'
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  spotify_sdk_android: ^4.3.0
-  spotify_sdk_ios: ^4.3.0
-  spotify_sdk_platform_interface: ^4.3.0
-  spotify_sdk_web: ^4.3.0
+  spotify_sdk_android:
+    git:
+      url: https://github.com/EngineeringSuccess/spotify_sdk.git
+      ref: jeojeo-4.0.0
+      path: packages/spotify_sdk_android
+  spotify_sdk_ios:
+    git:
+      url: https://github.com/EngineeringSuccess/spotify_sdk.git
+      ref: jeojeo-4.0.0
+      path: packages/spotify_sdk_ios
+  spotify_sdk_platform_interface:
+    git:
+      url: https://github.com/EngineeringSuccess/spotify_sdk.git
+      ref: jeojeo-4.0.0
+      path: packages/spotify_sdk_platform_interface
+  spotify_sdk_web:
+    git:
+      url: https://github.com/EngineeringSuccess/spotify_sdk.git
+      ref: jeojeo-4.0.0
+      path: packages/spotify_sdk_web
 
 dev_dependencies:
   flutter_test:

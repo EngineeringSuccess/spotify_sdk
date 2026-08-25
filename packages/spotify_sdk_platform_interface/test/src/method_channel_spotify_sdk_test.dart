@@ -23,6 +23,14 @@ void main() {
               case 'connectToSpotify':
                 return true;
               case 'getAccessToken':
+                final arguments = methodCall.arguments as Map<dynamic, dynamic>;
+                if (arguments.containsKey('tokenSwapURL')) {
+                  return <String, dynamic>{
+                    'accessToken': 'mock_access_token',
+                    'refreshToken': 'mock_refresh_token',
+                    'expiresAt': 1234,
+                  };
+                }
                 return 'mock_access_token';
               case 'getSwapToken':
                 return 'mock_swap_code';
@@ -109,6 +117,23 @@ void main() {
 
       expect(token, 'mock_access_token');
       expect(log.first.method, 'getAccessToken');
+    });
+
+    test('authorize returns structured authorization result', () async {
+      final result = await platform.authorize(
+        clientId: 'test_client_id',
+        redirectUrl: 'test_redirect_url',
+        scope: 'app-remote-control',
+        tokenSwapURL: 'https://example.com/swap',
+        tokenRefreshURL: 'https://example.com/refresh',
+      );
+
+      expect(result.accessToken, 'mock_access_token');
+      expect(result.refreshToken, 'mock_refresh_token');
+      expect(result.expiresAt, 1234);
+      final args = log.first.arguments as Map<dynamic, dynamic>;
+      expect(args['tokenSwapURL'], 'https://example.com/swap');
+      expect(args['tokenRefreshURL'], 'https://example.com/refresh');
     });
 
     test('getSwapToken returns swap token string', () async {

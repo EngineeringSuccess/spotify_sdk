@@ -56,7 +56,37 @@ class MethodChannelSpotifySdk extends SpotifySdkPlatform {
         ParamNames.asRadio: asRadio,
       },
     );
+    if (authorization is Map<dynamic, dynamic>) {
+      return (authorization['accessToken'] ??
+              authorization['authorizationCode'] ??
+              '')
+          .toString();
+    }
     return authorization.toString();
+  }
+
+  @override
+  Future<SpotifyAuthorizationResult> authorize({
+    required String clientId,
+    required String redirectUrl,
+    required String scope,
+    String? tokenSwapURL,
+    String? tokenRefreshURL,
+  }) async {
+    final result = await _gateway.invoke<dynamic>(
+      MethodNames.getAccessToken,
+      arguments: {
+        ParamNames.clientId: clientId,
+        ParamNames.redirectUrl: redirectUrl,
+        ParamNames.scope: scope,
+        ParamNames.tokenSwapURL: tokenSwapURL,
+        ParamNames.tokenRefreshURL: tokenRefreshURL,
+      },
+    );
+    if (result is Map<dynamic, dynamic>) {
+      return SpotifyAuthorizationResult.fromMap(result);
+    }
+    return SpotifyAuthorizationResult(accessToken: result?.toString());
   }
 
   @override

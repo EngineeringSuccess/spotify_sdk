@@ -12,6 +12,7 @@ import 'package:spotify_sdk_platform_interface/models/image_uri.dart';
 import 'package:spotify_sdk_platform_interface/models/library_state.dart';
 import 'package:spotify_sdk_platform_interface/models/player_context.dart';
 import 'package:spotify_sdk_platform_interface/models/player_state.dart';
+import 'package:spotify_sdk_platform_interface/models/spotify_authorization_result.dart';
 import 'package:spotify_sdk_platform_interface/models/user_status.dart';
 import 'package:spotify_sdk_platform_interface/src/method_channel_spotify_sdk.dart';
 
@@ -32,6 +33,7 @@ export 'package:spotify_sdk_platform_interface/models/player_context.dart';
 export 'package:spotify_sdk_platform_interface/models/player_options.dart';
 export 'package:spotify_sdk_platform_interface/models/player_restrictions.dart';
 export 'package:spotify_sdk_platform_interface/models/player_state.dart';
+export 'package:spotify_sdk_platform_interface/models/spotify_authorization_result.dart';
 export 'package:spotify_sdk_platform_interface/models/track.dart';
 export 'package:spotify_sdk_platform_interface/models/user_status.dart';
 export 'package:spotify_sdk_platform_interface/src/method_channel_spotify_sdk.dart';
@@ -82,6 +84,17 @@ abstract class SpotifySdkPlatform extends PlatformInterface {
     String? scope,
   }) {
     throw UnimplementedError('getAccessToken() has not been implemented.');
+  }
+
+  /// Authorizes Spotify with PKCE.
+  Future<SpotifyAuthorizationResult> authorize({
+    required String clientId,
+    required String redirectUrl,
+    required String scope,
+    String? tokenSwapURL,
+    String? tokenRefreshURL,
+  }) {
+    throw UnimplementedError('authorize() has not been implemented.');
   }
 
   /// Returns a swap token for Spotify using token swap authentication.
