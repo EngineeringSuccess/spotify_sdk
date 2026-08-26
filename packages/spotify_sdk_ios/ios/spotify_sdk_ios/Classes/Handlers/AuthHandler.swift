@@ -112,6 +112,8 @@ class AuthHandler: NSObject {
         if remoteManager.playerStateHandler == nil {
             remoteManager.playerStateHandler = PlayerStateHandler(appRemote: appRemote, playerDelegate: playerDelegate)
             RemoteManager.playerStateChannel?.setStreamHandler(remoteManager.playerStateHandler)
+        } else {
+            remoteManager.playerStateHandler?.setAppRemote(appRemote)
         }
         if remoteManager.playerContextHandler == nil {
             remoteManager.playerContextHandler = PlayerContextHandler(appRemote: appRemote, playerDelegate: playerDelegate)

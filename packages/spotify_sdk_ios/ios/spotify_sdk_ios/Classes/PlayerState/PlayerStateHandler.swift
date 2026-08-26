@@ -2,13 +2,17 @@ import Flutter
 import SpotifyiOS
 
 class PlayerStateHandler: StatusHandler {
-    private let appRemote: SPTAppRemote
+    private var appRemote: SPTAppRemote
     private let playerDelegate: PlayerDelegate
 
     init (appRemote: SPTAppRemote, playerDelegate: PlayerDelegate) {
         self.appRemote = appRemote
         self.playerDelegate = playerDelegate
         super.init()
+    }
+
+    func setAppRemote(_ appRemote: SPTAppRemote) {
+        self.appRemote = appRemote
     }
 
     override func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
