@@ -11,22 +11,26 @@ flutter_export_environment.sh
 
 examples/all_plugins/pubspec.yaml
 
-Podfile
-Podfile.lock
 Pods/
 .symlinks/
 **/Flutter/App.framework/
 **/Flutter/Flutter.framework/
 **/Flutter/Generated.xcconfig
 **/Flutter/flutter_assets/
+**/Flutter/ephemeral/
 ServiceDefinitions.json
 xcuserdata/
 *.xcworkspace
+!**/Runner.xcworkspace
+!**/Runner.xcworkspace/contents.xcworkspacedata
 **/DerivedData/
 
 local.properties
 keystore.properties
 .gradle/
+**/.gradle/
+.kotlin/
+**/.kotlin/
 gradlew
 gradlew.bat
 gradle-wrapper.jar
@@ -48,3 +52,20 @@ build/
 SpotifyiOS.framework
 **/doc/api/
 /ios/ios-sdk/
+
+# FVM SDK cache
+.fvm/
+
+# Local agent artifacts
+.artifacts/
+
+# Local environment variables
+.env
+*.env
+
+# Dynamically downloaded Spotify App Remote Maven repository
+**/m2repository/
+
+# Coverage reports
+coverage/
+**/coverage/
