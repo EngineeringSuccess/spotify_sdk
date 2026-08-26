@@ -11,18 +11,19 @@ let package = Package(
     products: [
         .library(name: "spotify-sdk-ios", targets: ["spotify_sdk_ios"])
     ],
-    dependencies: [],
+    dependencies: [
+        .package(
+            url: "https://github.com/spotify/ios-sdk.git",
+            exact: "5.0.1"
+        )
+    ],
     targets: [
         .target(
             name: "spotify_sdk_ios",
             dependencies: [
-                "SpotifyiOS"
+                .product(name: "SpotifyiOS", package: "ios-sdk")
             ],
             path: "Classes"
-        ),
-        .binaryTarget(
-            name: "SpotifyiOS",
-            path: "ios-sdk/SpotifyiOS.xcframework"
         )
     ]
 )
