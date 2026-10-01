@@ -27,6 +27,10 @@ class AuthHandler: NSObject {
         remoteManager.connectionStatusHandler?.connectionResult = result
         let accessToken: String? = swiftArguments[SpotifySdkConstants.paramAccessToken] as? String
         let spotifyUri: String = swiftArguments[SpotifySdkConstants.paramSpotifyUri] as? String ?? ""
+        if accessToken == nil {
+            remoteManager.connectionStatusHandler?.authorizationCallbackCount = 0
+            remoteManager.connectionStatusHandler?.authorizationCallbackSources = []
+        }
 
         do {
             try connectToSpotifyInternal(clientId: clientID, redirectURL: url, accessToken: accessToken, spotifyUri: spotifyUri, asRadio: swiftArguments[SpotifySdkConstants.paramAsRadio] as? Bool, additionalScopes: swiftArguments[SpotifySdkConstants.scope] as? String)
@@ -157,7 +161,7 @@ extension AuthHandler: SPTSessionManagerDelegate {
     }
 
     public func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
-        remoteManager.connectionStatusHandler?.tokenResult?(FlutterError(code: "authenticationTokenError", message: error.localizedDescription, details: nil))
+        remoteManager.connectionStatusHandler?.tokenResult?(FlutterError(code: "authenticationTokenError", message: error.localizedDescription, details: SpotifyErrorMapper.nativeDetails(error, operation: "session_authentication")))
         remoteManager.connectionStatusHandler?.tokenResult = nil
         sessionManager = nil
     }

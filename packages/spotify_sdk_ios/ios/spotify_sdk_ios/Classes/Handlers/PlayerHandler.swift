@@ -11,9 +11,10 @@ class PlayerHandler: NSObject {
 
     private var defaultPlayCallback: (_ result: @escaping FlutterResult) -> SPTAppRemoteCallback {
         return { result in
+            let remote = self.remoteManager.appRemote
             return { _, error in
                 if let error = error {
-                    result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error.localizedDescription))
+                    result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error.localizedDescription, details: SpotifyErrorMapper.nativeDetails(error, operation: "player_api", remote: remote)))
                 } else {
                     result(true)
                 }
@@ -28,7 +29,7 @@ class PlayerHandler: NSObject {
         }
         appRemote.playerAPI?.getPlayerState({ (playerState, error) in
             guard error == nil else {
-                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? ""))
+                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? "", details: SpotifyErrorMapper.nativeDetails(error, operation: "get_player_state", remote: appRemote)))
                 return
             }
             guard let playerState = playerState as? SPTAppRemotePlayerState else {
@@ -97,7 +98,7 @@ class PlayerHandler: NSObject {
         }
         appRemote.playerAPI?.skip(toPrevious: { (_, error) in
             if let error = error {
-                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error.localizedDescription))
+                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error.localizedDescription, details: SpotifyErrorMapper.nativeDetails(error, operation: "player_api", remote: appRemote)))
                 return
             }
             result(true)
@@ -118,7 +119,7 @@ class PlayerHandler: NSObject {
 
         appRemote.contentAPI?.fetchContentItem(forURI: uri, callback: { (contentItemResult, error) in
             guard error == nil else {
-                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? ""))
+                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? "", details: SpotifyErrorMapper.nativeDetails(error, operation: "player_api", remote: appRemote)))
                 return
             }
             guard let contentItem = contentItemResult as? SPTAppRemoteContentItem else {
@@ -154,7 +155,7 @@ class PlayerHandler: NSObject {
         }
         appRemote.playerAPI?.getPlayerState({ (playerState, error) in
             guard error == nil else {
-                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? ""))
+                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? "", details: SpotifyErrorMapper.nativeDetails(error, operation: "player_api", remote: appRemote)))
                 return
             }
             guard let playerState = playerState as? SPTAppRemotePlayerState else {
@@ -173,7 +174,7 @@ class PlayerHandler: NSObject {
         }
         appRemote.playerAPI?.getCrossfadeState({ (crossfadeState, error) in
             guard error == nil else {
-                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? ""))
+                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? "", details: SpotifyErrorMapper.nativeDetails(error, operation: "player_api", remote: appRemote)))
                 return
             }
             guard let crossfadeState = crossfadeState as? SPTAppRemoteCrossfadeState else {
@@ -204,7 +205,7 @@ class PlayerHandler: NSObject {
         }
         appRemote.playerAPI?.getPlayerState({ (playerState, error) in
             guard error == nil else {
-                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? ""))
+                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? "", details: SpotifyErrorMapper.nativeDetails(error, operation: "player_api", remote: appRemote)))
                 return
             }
             guard let playerState = playerState as? SPTAppRemotePlayerState else {
@@ -237,7 +238,7 @@ class PlayerHandler: NSObject {
         }
         appRemote.playerAPI?.getPlayerState({ (playerState, error) in
             guard error == nil else {
-                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? ""))
+                result(SpotifyErrorMapper.makeError(code: "PlayerAPI Error", message: error?.localizedDescription ?? "", details: SpotifyErrorMapper.nativeDetails(error, operation: "player_api", remote: appRemote)))
                 return
             }
             guard let playerState = playerState as? SPTAppRemotePlayerState else {

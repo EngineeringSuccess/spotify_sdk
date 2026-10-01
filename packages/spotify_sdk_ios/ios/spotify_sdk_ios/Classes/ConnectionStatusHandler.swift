@@ -3,6 +3,8 @@ import SpotifyiOS
 
 class ConnectionStatusHandler: StatusHandler, SPTAppRemoteDelegate {
 
+    var authorizationCallbackCount = 0
+    var authorizationCallbackSources: [String] = []
     var tokenResult: FlutterResult?
     var connectionResult: FlutterResult?
     
@@ -28,8 +30,8 @@ class ConnectionStatusHandler: StatusHandler, SPTAppRemoteDelegate {
         if error != nil {
             // report spotify remote error to plugin
             eventSink?("{\"connected\": false, \"errorCode\": \"\(error!._code)\", \"errorDetails\": \"\(error!.localizedDescription)\"}")
-            connectionResult?(FlutterError(code: String(error!._code), message: error!.localizedDescription, details: nil))
-            tokenResult?(FlutterError(code: String(error!._code), message: error!.localizedDescription, details: nil))
+            connectionResult?(FlutterError(code: String(error!._code), message: error!.localizedDescription, details: SpotifyErrorMapper.nativeDetails(error, operation: "connect", remote: appRemote)))
+            tokenResult?(FlutterError(code: String(error!._code), message: error!.localizedDescription, details: SpotifyErrorMapper.nativeDetails(error, operation: "connect", remote: appRemote)))
         } else {
             // report disconnection to plugin
             eventSink?("{\"connected\": false}")

@@ -111,7 +111,7 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
         if authHandler.handleOpenURL(application, url: url, options: options) {
             return true
         }
-        setAccessTokenFromURL(url: url)
+        setAccessTokenFromURL(url: url, source: "application_open_url")
         return true
     }
 
@@ -123,11 +123,15 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
         if authHandler.handleOpenURL(application, url: url, options: [:]) {
             return true
         }
-        setAccessTokenFromURL(url: url)
+        setAccessTokenFromURL(url: url, source: "application_universal_link")
         return false
     }
 
-    private func setAccessTokenFromURL(url: URL) {
+    private func setAccessTokenFromURL(url: URL, source: String) {
+        remoteManager.connectionStatusHandler?.authorizationCallbackCount += 1
+        if let handler = remoteManager.connectionStatusHandler, handler.authorizationCallbackSources.count < 8 {
+            handler.authorizationCallbackSources.append(source)
+        }
         guard let appRemote = remoteManager.appRemote else {
             remoteManager.connectionStatusHandler?.connectionResult?(FlutterError(code: "errorConnection", message: "AppRemote is null", details: nil))
             remoteManager.connectionStatusHandler?.tokenResult?(FlutterError(code: "errorConnection", message: "AppRemote is null", details: nil))
@@ -137,8 +141,8 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
         }
 
         guard let token = appRemote.authorizationParameters(from: url)?[SPTAppRemoteAccessTokenKey] else {
-            remoteManager.connectionStatusHandler?.connectionResult?(FlutterError(code: "authenticationTokenError", message: appRemote.authorizationParameters(from: url)?[SPTAppRemoteErrorDescriptionKey], details: nil))
-            remoteManager.connectionStatusHandler?.tokenResult?(FlutterError(code: "authenticationTokenError", message: appRemote.authorizationParameters(from: url)?[SPTAppRemoteErrorDescriptionKey], details: nil))
+            remoteManager.connectionStatusHandler?.connectionResult?(FlutterError(code: "authenticationTokenError", message: appRemote.authorizationParameters(from: url)?[SPTAppRemoteErrorDescriptionKey], details: SpotifyErrorMapper.nativeDetails(nil, operation: "authorization_callback", remote: appRemote)))
+            remoteManager.connectionStatusHandler?.tokenResult?(FlutterError(code: "authenticationTokenError", message: appRemote.authorizationParameters(from: url)?[SPTAppRemoteErrorDescriptionKey], details: SpotifyErrorMapper.nativeDetails(nil, operation: "authorization_callback", remote: appRemote)))
             remoteManager.connectionStatusHandler?.connectionResult = nil
             remoteManager.connectionStatusHandler?.tokenResult = nil
             return
@@ -156,7 +160,7 @@ extension SpotifySdkPlugin: UIWindowSceneDelegate {
         if authHandler.handleOpenURL(UIApplication.shared, url: url, options: [:]) {
             return
         }
-        setAccessTokenFromURL(url: url)
+        setAccessTokenFromURL(url: url, source: "scene_open_url")
     }
 
     public func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
@@ -167,6 +171,6 @@ extension SpotifySdkPlugin: UIWindowSceneDelegate {
         if authHandler.handleOpenURL(UIApplication.shared, url: url, options: [:]) {
             return
         }
-        setAccessTokenFromURL(url: url)
+        setAccessTokenFromURL(url: url, source: "scene_universal_link")
     }
 }
