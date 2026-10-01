@@ -1,0 +1,36 @@
+name: spotify_sdk_android
+publish_to: none
+description: The Android platform implementation of the spotify_sdk plugin.
+version: 4.3.0
+homepage: https://github.com/brim-borium/spotify_sdk
+repository: https://github.com/brim-borium/spotify_sdk/tree/main/packages/spotify_sdk_android
+topics:
+  - spotify
+  - sdk
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  spotify_sdk_platform_interface:
+    git:
+      url: https://github.com/EngineeringSuccess/spotify_sdk.git
+      ref: jeojeo-4.0.0
+      path: packages/spotify_sdk_platform_interface
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^10.3.0
+
+flutter:
+  plugin:
+    implements: spotify_sdk
+    platforms:
+      android:
+        package: de.minimalme.spotify_sdk
+        pluginClass: SpotifySdkPlugin
