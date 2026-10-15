@@ -1,3 +1,407 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## 4.0.0
+
+A major release bringing federated monorepo architecture, zero-configuration Android setup, Spotify Android Auth SDK 5.0.0, native iOS playback feature parity, typed domain exception hierarchy, Web Playback SDK with modern `package:web` / WASM support, and compatibility with Flutter 3.47.1 & Dart 3.13.
+
+### ⚠️ Breaking Changes & Migration Guide
+
+#### 1. Android Zero-Configuration SDK Auto-Download
+* **What changed**: The plugin now automatically resolves and downloads the native Spotify App Remote SDK binary during Gradle compilation.
+* **Migration**:
+  * Remove `dart run spotify_sdk:android_setup` from any setup scripts (deprecated & removed).
+  * Remove `include ':spotify-app-remote'` from `android/settings.gradle` / `android/settings.gradle.kts`.
+  * Delete the legacy `android/spotify-app-remote` folder if present from previous installations.
+
+#### 2. Android Auth SDK v5.0.0 Migration
+* **What changed**: Upgraded from Spotify Android Auth 2.x to `com.spotify.android:auth:5.0.0`. Manifest placeholders (`redirectSchemeName`, `redirectHostName`) are no longer used.
+* **Migration**:
+  * In `android/app/src/main/AndroidManifest.xml`, register `RedirectUriReceiverActivity` directly inside `<application>`:
+    ```xml
+    <activity
+        android:name="com.spotify.sdk.android.auth.browser.RedirectUriReceiverActivity"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+                android:scheme="your-redirect-scheme"
+                android:host="your-redirect-host" />
+        </intent-filter>
+    </activity>
+    ```
+
+#### 3. Structured Domain Exceptions (`SpotifyException`)
+* **What changed**: Replaced generic, untyped `PlatformException`s with a structured domain exception hierarchy inheriting from `SpotifyException` (`SpotifyAuthenticationException`, `SpotifyConnectionException`, `SpotifyPlaybackException`, `SpotifyUnsupportedException`, `SpotifyRateLimitException`, `SpotifyUnknownException`).
+* **Migration**:
+  * Catch typed `SpotifyException` subclasses instead of relying on `PlatformException.code` string matching:
+    ```dart
+    try {
+      await SpotifySdk.connectToSpotifyRemote(...);
+    } on SpotifyAuthenticationException catch (e) {
+      // Authentication failure
+    } on SpotifyConnectionException catch (e) {
+      // Connection failure
+    } on SpotifyException catch (e) {
+      // General domain exception
+    }
+    ```
+
+#### 4. Web Migration to `package:web` (WASM Ready)
+* **What changed**: Migrated from legacy `dart:html` to `package:web` and `dart:js_interop`.
+* **Migration**: No consumer code changes needed. Fully compatible with WebAssembly (`--wasm`) builds in Flutter 3.47+.
+
+#### 5. Platform Minimums
+* **Flutter**: `>=3.47.1` | **Dart**: `>=3.13.0 <4.0.0`
+* **Android**: minSdk `24`, Gradle `9.7+`, Kotlin `2.4.10+`
+* **iOS**: Minimum deployment target iOS `15.0+`
+
+---
+
+### ✨ Features & Improvements
+
+* **Centralized Bridge Pattern**: Introduced `PlatformChannelGateway` and centralized constants across Dart, Android (`SpotifySdkConstants.kt`), iOS (`SpotifySdkConstants.swift`), and Web.
+* **Synchronized Event Streams**: Full support for all 5 standard event channels across all platforms (`player_state`, `player_context`, `connection_status`, `capabilities`, `user_status`).
+* **iOS Playback Parity**: Added `getCrossFadeState`, `switchToLocalDevice`, universal links restoration handler, and enhanced repeat/shuffle control.
+* **Web PKCE OAuth**: Complete PKCE authorization flow with token refresh and Spotify Web Playback SDK streaming.
+* **Code Quality**: 100% test coverage for platform delegation & web clients; `very_good_analysis` strict linting throughout.
+
+## 2026-08-21
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`spotify_sdk` - `v4.0.0-dev.8`](#spotify_sdk---v400-dev8)
+ - [`spotify_sdk_android` - `v4.3.0`](#spotify_sdk_android---v430)
+ - [`spotify_sdk_ios` - `v4.3.0`](#spotify_sdk_ios---v430)
+ - [`spotify_sdk_platform_interface` - `v4.3.0`](#spotify_sdk_platform_interface---v430)
+ - [`spotify_sdk_web` - `v4.3.0`](#spotify_sdk_web---v430)
+
+---
+
+#### `spotify_sdk` - `v4.0.0-dev.8`
+
+ - **FEAT**: upgrade to Flutter 3.47.1 and update dependencies (#268).
+
+#### `spotify_sdk_android` - `v4.3.0`
+
+ - **FEAT**: upgrade to Flutter 3.47.1 and update dependencies (#268).
+
+#### `spotify_sdk_ios` - `v4.3.0`
+
+ - **FEAT**: upgrade to Flutter 3.47.1 and update dependencies (#268).
+
+#### `spotify_sdk_platform_interface` - `v4.3.0`
+
+ - **FEAT**: upgrade to Flutter 3.47.1 and update dependencies (#268).
+
+#### `spotify_sdk_web` - `v4.3.0`
+
+ - **FEAT**: upgrade to Flutter 3.47.1 and update dependencies (#268).
+
+
+## 2026-08-13
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`spotify_sdk` - `v4.0.0-dev.7`](#spotify_sdk---v400-dev7)
+ - [`spotify_sdk_android` - `v4.2.1`](#spotify_sdk_android---v421)
+ - [`spotify_sdk_ios` - `v4.2.1`](#spotify_sdk_ios---v421)
+ - [`spotify_sdk_platform_interface` - `v4.2.0`](#spotify_sdk_platform_interface---v420)
+ - [`spotify_sdk_web` - `v4.2.1`](#spotify_sdk_web---v421)
+
+---
+
+#### `spotify_sdk` - `v4.0.0-dev.7`
+
+ - **FEAT**(exceptions): introduce structured domain exceptions for Spotify SDK (#265).
+
+#### `spotify_sdk_android` - `v4.2.1`
+
+ - **REFACTOR**: synchronize native event channels and centralize Android constants (#262).
+ - **FIX**: decouple gradle AAR download and align iOS deployment targets (#263) (#263).
+
+#### `spotify_sdk_ios` - `v4.2.1`
+
+ - **REFACTOR**: synchronize native event channels and centralize Android constants (#262).
+ - **FIX**: decouple gradle AAR download and align iOS deployment targets (#263) (#263).
+
+#### `spotify_sdk_platform_interface` - `v4.2.0`
+
+ - **REFACTOR**: synchronize native event channels and centralize Android constants (#262).
+ - **FEAT**(exceptions): introduce structured domain exceptions for Spotify SDK (#265).
+
+#### `spotify_sdk_web` - `v4.2.1`
+
+ - **REFACTOR**: harden monorepo pipeline, unify release gates & optimize web event dispatcher (#264).
+
+
+## 2026-08-08
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`spotify_sdk` - `v4.0.0-dev.6`](#spotify_sdk---v400-dev6)
+ - [`spotify_sdk_android` - `v4.2.0`](#spotify_sdk_android---v420)
+ - [`spotify_sdk_ios` - `v4.2.0`](#spotify_sdk_ios---v420)
+ - [`spotify_sdk_web` - `v4.2.0`](#spotify_sdk_web---v420)
+
+---
+
+#### `spotify_sdk` - `v4.0.0-dev.6`
+
+ - **FEAT**: update to gradle 9 (#261).
+ - **FEAT**: add test coverage report step summary, sticky PR comment, and ign… (#258).
+
+#### `spotify_sdk_android` - `v4.2.0`
+
+ - **FEAT**: update to gradle 9 (#261).
+ - **FEAT**: add test coverage report step summary, sticky PR comment, and ign… (#258).
+
+#### `spotify_sdk_ios` - `v4.2.0`
+
+ - **FEAT**: add test coverage report step summary, sticky PR comment, and ign… (#258).
+
+#### `spotify_sdk_web` - `v4.2.0`
+
+ - **FEAT**: add test coverage report step summary, sticky PR comment, and ign… (#258).
+
+
+## 2026-08-05
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`spotify_sdk` - `v4.0.0-dev.5`](#spotify_sdk---v400-dev5)
+ - [`spotify_sdk_android` - `v4.1.0`](#spotify_sdk_android---v410)
+ - [`spotify_sdk_ios` - `v4.1.0`](#spotify_sdk_ios---v410)
+ - [`spotify_sdk_platform_interface` - `v4.1.0`](#spotify_sdk_platform_interface---v410)
+ - [`spotify_sdk_web` - `v4.1.0`](#spotify_sdk_web---v410)
+
+---
+
+#### `spotify_sdk` - `v4.0.0-dev.5`
+
+ - **FEAT**: release version 4.0.0 with native iOS playback features and improved pub.dev Pana compliance across all packages.
+
+#### `spotify_sdk_android` - `v4.1.0`
+
+ - **FEAT**: release version 4.0.0 with native iOS playback features and improved pub.dev Pana compliance across all packages.
+
+#### `spotify_sdk_ios` - `v4.1.0`
+
+ - **FEAT**: release version 4.0.0 with native iOS playback features and improved pub.dev Pana compliance across all packages.
+
+#### `spotify_sdk_platform_interface` - `v4.1.0`
+
+ - **FEAT**: release version 4.0.0 with native iOS playback features and improved pub.dev Pana compliance across all packages.
+
+#### `spotify_sdk_web` - `v4.1.0`
+
+ - **FEAT**: release version 4.0.0 with native iOS playback features and improved pub.dev Pana compliance across all packages.
+
+
+## 2026-08-05
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`spotify_sdk_android` - `v4.0.0-dev.4`](#spotify_sdk_android---v400-dev4)
+ - [`spotify_sdk_ios` - `v4.0.0-dev.4`](#spotify_sdk_ios---v400-dev4)
+ - [`spotify_sdk_platform_interface` - `v4.0.0-dev.4`](#spotify_sdk_platform_interface---v400-dev4)
+ - [`spotify_sdk_web` - `v4.0.0-dev.4`](#spotify_sdk_web---v400-dev4)
+
+Packages with other changes:
+
+ - [`spotify_sdk` - `v4.0.0-dev.4`](#spotify_sdk---v400-dev4)
+
+---
+
+#### `spotify_sdk_android` - `v4.0.0`
+
+ - **FEAT**: update version to 4.0.0 and update package description length for pub.dev Pana compliance.
+ - **REFACTOR**: web plugin deepening (#257).
+ - **REFACTOR**: introduce PlatformChannelGateway to centralize method chann… (#256).
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_ios` - `v4.0.0`
+
+ - **FEAT**: add native support for `toggleRepeat`, `toggleShuffle`, and `seekToRelativePosition`.
+ - **FEAT**: update version to 4.0.0 and update package description length for pub.dev Pana compliance.
+ - **REFACTOR**: web plugin deepening (#257).
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_platform_interface` - `v4.0.0`
+
+ - **FEAT**: update version to 4.0.0 and update package description length for pub.dev Pana compliance.
+ - **REFACTOR**: web plugin deepening (#257).
+ - **REFACTOR**: introduce PlatformChannelGateway to centralize method chann… (#256).
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_web` - `v4.0.0`
+
+ - **FEAT**: update version to 4.0.0 and update package description length for pub.dev Pana compliance.
+ - **REFACTOR**: web plugin deepening (#257).
+ - **REFACTOR**: introduce PlatformChannelGateway to centralize method chann… (#256).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk` - `v4.0.0-dev.4`
+
+ - **DOCS**: align README API tables with true platform support matrices and Dart API method names (`getCrossFadeState`, `switchToLocalDevice`).
+ - **FEAT**: update pubspec description for pub.dev Pana compliance and target sub-packages `^4.0.0`.
+ - **REFACTOR**: web plugin deepening (#257).
+
+
+## 2026-08-01
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`spotify_sdk` - `v4.0.0-dev.3`](#spotify_sdk---v400-dev3)
+ - [`spotify_sdk_android` - `v3.0.0`](#spotify_sdk_android---v300)
+ - [`spotify_sdk_ios` - `v3.0.0`](#spotify_sdk_ios---v300)
+ - [`spotify_sdk_platform_interface` - `v3.0.0`](#spotify_sdk_platform_interface---v300)
+ - [`spotify_sdk_web` - `v3.0.0`](#spotify_sdk_web---v300)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `spotify_sdk` - `v4.0.0-dev.3`
+
+ - **REFACTOR**: introduce PlatformChannelGateway to centralize method chann… (#256).
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_android` - `v3.0.0`
+
+ - **REFACTOR**: introduce PlatformChannelGateway to centralize method chann… (#256).
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_ios` - `v3.0.0`
+
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_platform_interface` - `v3.0.0`
+
+ - **REFACTOR**: introduce PlatformChannelGateway to centralize method chann… (#256).
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_web` - `v3.0.0`
+
+ - **REFACTOR**: introduce PlatformChannelGateway to centralize method chann… (#256).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+
+## 2026-07-19
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`spotify_sdk` - `v4.0.0-dev.2`](#spotify_sdk---v400-dev2)
+ - [`spotify_sdk_android` - `v2.0.0`](#spotify_sdk_android---v200)
+ - [`spotify_sdk_ios` - `v2.0.0`](#spotify_sdk_ios---v200)
+ - [`spotify_sdk_platform_interface` - `v2.0.0`](#spotify_sdk_platform_interface---v200)
+ - [`spotify_sdk_web` - `v2.0.0`](#spotify_sdk_web---v200)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `spotify_sdk` - `v4.0.0-dev.2`
+
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_android` - `v2.0.0`
+
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_ios` - `v2.0.0`
+
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_platform_interface` - `v2.0.0`
+
+ - **FIX**: resolve Web/WASM, SwiftPM and Kotlin scoring warnings on pub.dev (#254).
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+#### `spotify_sdk_web` - `v2.0.0`
+
+ - **BREAKING** **FEAT**: update all to latest (#251).
+
+## 4.0.0-dev.1
+* **BREAKING: Android Zero-Configuration SDK Auto-Download**:
+  * The plugin now automatically downloads the Spotify App Remote SDK AAR binary during compilation, storing it in a local Maven repository (`m2repository`) within the plugin folder.
+  * The manual `dart run spotify_sdk:android_setup` command is deprecated and has been removed.
+  * Users no longer need to add `include ':spotify-app-remote'` to their `settings.gradle` file. Existing users should delete the `android/spotify-app-remote` folder and remove it from `settings.gradle`.
+* **BREAKING: Spotify Android Auth SDK v5.0.0 Migration**:
+  * Upgraded to `com.spotify.android:auth:5.0.0`.
+  * Removed support for `manifestPlaceholders` in `build.gradle`.
+  * Existing and new users must explicitly register `com.spotify.sdk.android.auth.browser.RedirectUriReceiverActivity` (note the `.browser.` in the package path) in their `AndroidManifest.xml` file.
+* **Modernization & Code Cleanups**:
+  * Cleaned up core dependencies by removing legacy setup scripts and their packages (`logger` and `http`).
+  * Updated to latest Dart and Flutter conventions and best practices:
+    * **Dart SDK**: Updated to `^3.10.0` (was `^3.8.0`) - enables modern language features (pattern matching, records, sealed classes).
+    * **Web Platform**: Migrated from `dart:html` to `package:web` for modern type-safe browser APIs.
+    * **Linting**: Replaced manual lint configuration with `very_good_analysis` package.
+    * **Conventions**: Constants now use lowerCamelCase (not UPPER_CASE) per modern Dart conventions.
+
+
 ## 3.0.2
 * chore: update deprications (#224)
 

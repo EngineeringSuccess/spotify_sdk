@@ -8,17 +8,24 @@ jobs:
   pana:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
-      - name: Install Dependencies
+      - name: Setup Workspace
+        uses: ./.github/actions/setup-workspace
+
+      - name: Install Pana & Webp
         run: |
-          flutter packages get
           flutter pub global activate pana
-          sudo apt-get install webp
+          sudo apt-get install -y webp
 
-      - name: Verify Pub Score
-        run: ./.github/scripts/verify_pub_score.sh
+      - name: Verify Monorepo Pub Scores
+        run: |
+          for pkg in packages/spotify_sdk packages/spotify_sdk_platform_interface packages/spotify_sdk_android packages/spotify_sdk_ios packages/spotify_sdk_web; do
+            echo "Verifying Pana score for $pkg..."
+            (cd "$pkg" && ../../.github/scripts/verify_pub_score.sh 140)
+          done
 
   publish:
     needs: pana
@@ -27,8 +34,24 @@ jobs:
       id-token: write # Required for authentication using OIDC
     runs-on: ubuntu-latest
     steps:
-    - name: 📚 Git Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - uses: ./.github/actions/publish_flutter_package
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Setup Workspace
+        uses: ./.github/actions/setup-workspace
+        with:
+          setup-java: 'true'
+
+      - name: 🪪 Get Id Token
+        uses: actions/github-script@v9
+        with:
+          script: |
+            let pub_token = await core.getIDToken('https://pub.dev')
+            core.exportVariable('PUB_TOKEN', pub_token)
+
+      - name: 📢 Authenticate pub.dev
+        run: flutter pub pub token add https://pub.dev --env-var PUB_TOKEN
+
+      - name: 📢 Publish packages via Melos
+        run: melos publish --no-dry-run --yes
