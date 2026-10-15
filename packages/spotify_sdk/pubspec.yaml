@@ -28,7 +28,7 @@ dependencies:
   spotify_sdk_ios:
     git:
       url: https://github.com/EngineeringSuccess/spotify_sdk.git
-      ref: jeojeo/4.0.0
+      ref: 825bc9f00e0931a4e4853a4e4521714edb0e18d9
       path: packages/spotify_sdk_ios
   spotify_sdk_platform_interface:
     git:
