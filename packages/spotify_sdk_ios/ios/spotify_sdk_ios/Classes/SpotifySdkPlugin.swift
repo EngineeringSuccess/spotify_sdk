@@ -5,6 +5,7 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
     private static var instance = SpotifySdkPlugin()
 
     private let remoteManager = RemoteManager.shared
+    private weak var processedAuthorizationRemote: SPTAppRemote?
     private lazy var authHandler = AuthHandler(remoteManager: remoteManager)
     private lazy var playerHandler = PlayerHandler(remoteManager: remoteManager)
     private lazy var libraryHandler = LibraryHandler(remoteManager: remoteManager)
@@ -148,6 +149,8 @@ public class SpotifySdkPlugin: NSObject, FlutterPlugin {
             return
         }
 
+        guard processedAuthorizationRemote !== appRemote else { return }
+        processedAuthorizationRemote = appRemote
         appRemote.connectionParameters.accessToken = token
         appRemote.connect()
     }
